@@ -46,7 +46,7 @@ async def apply_config(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     merged = dict(helper.options or {})
     merged["state"] = body
     try:
-        await hass.config_entries.async_update_entry(helper, options=merged)
+        hass.config_entries.async_update_entry(helper, options=merged)
         await hass.config_entries.async_reload(helper.entry_id)
     except Exception:  # noqa: BLE001
         _LOGGER.exception(

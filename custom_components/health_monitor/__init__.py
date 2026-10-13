@@ -50,7 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             body = (helper.options or {}).get("state", "")
             rows = import_body.parse_body(body) if body else []
             if rows:
-                await hass.config_entries.async_update_entry(
+                hass.config_entries.async_update_entry(
                     entry, options={CONF_ROWS: rows}
                 )
                 _LOGGER.info(

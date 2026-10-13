@@ -41,7 +41,7 @@ class HealthMonitorConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: ConfigType | None = None) -> None:
         """Select the target template sensor."""
         if user_input is not None:
-            self.async_set_unique_id(user_input[CONF_TARGET])
+            await self.async_set_unique_id(user_input[CONF_TARGET])
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
                 title=user_input.get("title") or "Health Monitor",
@@ -310,7 +310,7 @@ class HealthMonitorOptionsFlow(OptionsFlow):
     async def _finish(self) -> None:
         """Persist the table, apply the generated template, then finish."""
         rows = self._rows
-        await self.hass.config_entries.async_update_entry(
+        self.hass.config_entries.async_update_entry(
             self._entry, options={CONF_ROWS: rows}
         )
         ok = await apply_mod.apply_config(self.hass, self._entry)
