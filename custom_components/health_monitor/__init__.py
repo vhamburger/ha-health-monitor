@@ -93,7 +93,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry.entry_id
         )
         if sensor is not None:
-            hass.async_create_task(sensor.async_recompute)
+            hass.async_create_task(sensor.async_recompute())
 
     unsub = async_dispatcher_connect(hass, SIGNAL_CONFIG_ENTRY_CHANGED, _on_entry_changed)
     hass.data[DOMAIN][entry.entry_id + "_unsub"] = unsub
