@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import CONF_TARGET
+from .const import CONF_ROWS, CONF_TARGET
 from . import generator
 
 _LOGGER = logging.getLogger(__name__)

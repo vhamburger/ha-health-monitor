@@ -42,6 +42,15 @@ SERVICE_SCHEMA = vol.Schema({})
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
+    # Defensive self-heal: an entry created outside the UI flow (e.g. via the
+    # MCP "set integration" add-mode) can lack a unique_id. Restore it so entry
+    # dedup keeps working. A unique_id collision only logs an error and
+    # re-indexes; it does not raise. (sync callback in HA 2026.10 – do not await)
+    if entry.unique_id is None:
+        target = entry.data.get(CONF_TARGET) or ""
+        if target:
+            hass.config_entries.async_update_entry(entry, unique_id=target)
+
     # One-time import: if no rows yet, parse the existing template body.
     if not entry.options.get(CONF_ROWS):
         target = entry.data.get(CONF_TARGET, "")
