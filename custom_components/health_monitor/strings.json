@@ -15,10 +15,33 @@
     "step": {
       "options": {
         "title": "Health Monitor – Monitors",
-        "description": "{rows} monitors configured. Rows with the same name are merged into one monitor. After saving, the template is regenerated and applied to the target helper.",
+        "description": "{rows} monitors configured. Choose an action: generate the template, add, edit or delete monitors – or quick-add from an integration. Rows with the same name are merged into one monitor.",
         "data": {
-          "rows": "Monitors",
+          "action": "Action",
           "quick_add_domain": "Quick add (integration)"
+        }
+      },
+      "row": {
+        "title": "Monitor: {name}",
+        "description": "Field help: entry = config entry UUIDs (comma separated); rep = representative entity (availability check); plug = power switch (off = never flagged); check = entity, entity|bad1,bad2 or entity|bad|text; fresh = entity or entity|hours.",
+        "data": {
+          "name": "Name",
+          "entry": "Config entries (UUIDs, comma separated)",
+          "rep": "Representative entity",
+          "plug": "Power switch",
+          "quiet": "Quiet hours (22–08)",
+          "frame": "TheFrame group",
+          "mass": "Mass domain",
+          "mass_ext": "Mass options (thr=3, match=status)",
+          "check": "Check (entity | entity|bad | entity|bad|text)",
+          "fresh": "Fresh (entity | entity|hours)"
+        }
+      },
+      "delete": {
+        "title": "Delete monitors",
+        "description": "Select the monitors to remove from the table.",
+        "data": {
+          "rows": "Monitors"
         }
       },
       "quick_add": {

@@ -4,7 +4,7 @@ Keeps a template sensor (the health dashboard's source of truth) in sync
 with a structured monitor table:
 
 * The monitor table lives in this integration's config entry (HA storage,
-  editable in the UI as a data table with quick-add).
+  editable in the UI row by row, with quick-add).
 * On setup / options save / resync the template body is regenerated and
   written to the target template helper (other option keys preserved).
 * A watchdog sensor reports drift between table and helper.
@@ -19,11 +19,12 @@ import logging
 import voluptuous as vol
 
 from homeassistant.config_entries import (
-    CONFIG_ENTRY_UPDATED,
     ConfigEntry,
+    ConfigEntryChange,
+    SIGNAL_CONFIG_ENTRY_CHANGED,
 )
-from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
-from homeassistant.helpers.typing import ConfigType
+from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from . import apply as apply_mod
 from .const import CONF_ROWS, CONF_TARGET, DOMAIN
@@ -68,15 +69,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Recompute the watchdog when the helper (or our own entry) changes.
     @callback
-    def _on_entry_updated(event: Event) -> None:
-        if event.data.get("action") != "updated":
+    def _on_entry_changed(
+        change_type: ConfigEntryChange, changed: ConfigEntry
+    ) -> None:
+        if change_type is not ConfigEntryChange.UPDATED:
             return
-        ids = set(event.data.get("entry_ids", []))
-        own = {entry.entry_id}
+        watched = {entry.entry_id}
         helper = apply_mod.find_helper_entry(hass, entry.data.get(CONF_TARGET, ""))
         if helper is not None:
-            own.add(helper.entry_id)
-        if not ids & own:
+            watched.add(helper.entry_id)
+        if changed.entry_id not in watched:
             return
         sensor: HealthMonitorStatusSensor | None = hass.data.get(DOMAIN, {}).get(
             entry.entry_id
@@ -84,7 +86,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if sensor is not None:
             hass.async_run_job(sensor.async_recompute)
 
-    unsub = hass.bus.async_listen(CONFIG_ENTRY_UPDATED, _on_entry_updated)
+    unsub = async_dispatcher_connect(hass, SIGNAL_CONFIG_ENTRY_CHANGED, _on_entry_changed)
     hass.data[DOMAIN][entry.entry_id + "_unsub"] = unsub
 
     return True

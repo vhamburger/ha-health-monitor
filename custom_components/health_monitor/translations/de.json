@@ -15,10 +15,33 @@
     "step": {
       "options": {
         "title": "Health Monitor – Monitore",
-        "description": "{rows} Monitore konfiguriert. Zeilen mit gleichem Namen werden zu einem Monitor zusammengeführt. Nach dem Speichern wird das Template neu generiert und in den Ziel-Helper geschrieben.",
+        "description": "{rows} Monitore konfiguriert. Aktion wählen: Template generieren, Monitore hinzufügen, bearbeiten oder löschen – oder per Quick-Add aus einer Integration. Zeilen mit gleichem Namen werden zu einem Monitor zusammengeführt.",
         "data": {
-          "rows": "Monitore",
+          "action": "Aktion",
           "quick_add_domain": "Quick-Add (Integration)"
+        }
+      },
+      "row": {
+        "title": "Monitor: {name}",
+        "description": "Feld-Hilfe: entry = Config-Entry-UUIDs (kommagetrennt); rep = Repräsentativ-Entität (Verfügbarkeits-Check); plug = Strom-Schalter (aus = nie gemeldet); check = entity, entity|bad1,bad2 oder entity|bad|text; fresh = entity oder entity|Stunden.",
+        "data": {
+          "name": "Name",
+          "entry": "Config-Entries (UUIDs, kommagetrennt)",
+          "rep": "Repräsentativ-Entität",
+          "plug": "Strom-Schalter",
+          "quiet": "Ruhezeiten (22–08)",
+          "frame": "TheFrame-Gruppe",
+          "mass": "Mass-Domain",
+          "mass_ext": "Mass-Optionen (thr=3, match=status)",
+          "check": "Check (entity | entity|bad | entity|bad|text)",
+          "fresh": "Fresh (entity | entity|Stunden)"
+        }
+      },
+      "delete": {
+        "title": "Monitore löschen",
+        "description": "Wähle die Monitore, die aus der Tabelle entfernt werden sollen.",
+        "data": {
+          "rows": "Monitore"
         }
       },
       "quick_add": {

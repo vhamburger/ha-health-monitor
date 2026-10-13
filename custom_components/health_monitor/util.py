@@ -6,7 +6,7 @@ from .const import ROW_FIELDS
 
 
 def normalize_rows(raw: object) -> list[dict]:
-    """Coerce user-supplied rows (from the DataTable selector) to the row model."""
+    """Coerce user-supplied rows (from the options flow) to the row model."""
     rows: list[dict] = []
     if not isinstance(raw, (list, tuple)):
         return rows
