@@ -1,0 +1,6 @@
+refresh:
+  name: "Refresh status"
+  description: "Recompute the sync status of the generated template."
+resync:
+  name: "Resync template"
+  description: "Regenerate the template from the table and write it to the target helper."

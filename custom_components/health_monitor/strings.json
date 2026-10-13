@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Health Monitor",
+        "description": "Select the template sensor that should be generated and kept in sync.",
+        "data": {
+          "title": "Name",
+          "target": "Target template sensor"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "options": {
+        "title": "Health Monitor – Monitors",
+        "description": "{rows} monitors configured. Rows with the same name are merged into one monitor. After saving, the template is regenerated and applied to the target helper.",
+        "data": {
+          "rows": "Monitors",
+          "quick_add_domain": "Quick add (integration)"
+        }
+      },
+      "quick_add": {
+        "title": "Quick add: {domain}",
+        "description": "Select entities to add as monitors (one row per entity).",
+        "data": {
+          "entities": "Entities"
+        }
+      }
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh status",
+      "description": "Recompute the sync status of the generated template."
+    },
+    "resync": {
+      "name": "Resync template",
+      "description": "Regenerate the template from the table and write it to the target helper."
+    }
+  }
+}

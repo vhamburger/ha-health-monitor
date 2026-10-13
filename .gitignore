@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+*.egg-info/
+
+# local verification tooling (contains local network details, not for the repo)
+tests_local/

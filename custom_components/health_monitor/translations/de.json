@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Health Monitor",
+        "description": "Wähle den Template-Sensor, der generiert und synchron gehalten werden soll.",
+        "data": {
+          "title": "Name",
+          "target": "Ziel-Template-Sensor"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "options": {
+        "title": "Health Monitor – Monitore",
+        "description": "{rows} Monitore konfiguriert. Zeilen mit gleichem Namen werden zu einem Monitor zusammengeführt. Nach dem Speichern wird das Template neu generiert und in den Ziel-Helper geschrieben.",
+        "data": {
+          "rows": "Monitore",
+          "quick_add_domain": "Quick-Add (Integration)"
+        }
+      },
+      "quick_add": {
+        "title": "Quick-Add: {domain}",
+        "description": "Entitäten auswählen, die als Monitore hinzugefügt werden sollen (eine Zeile pro Entität).",
+        "data": {
+          "entities": "Entitäten"
+        }
+      }
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Status aktualisieren",
+      "description": "Berechnet den Sync-Status des generierten Templates neu."
+    },
+    "resync": {
+      "name": "Template neu synchronisieren",
+      "description": "Generiert das Template aus der Tabelle neu und schreibt es in den Ziel-Helper."
+    }
+  }
+}
