@@ -11,8 +11,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
-    DeviceSelector,
-    DeviceSelectorConfig,
     EntitySelector,
     SelectSelector,
     SelectSelectorConfig,
@@ -151,22 +149,6 @@ class HealthMonitorOptionsFlow(OptionsFlow):
             )
         return opts
 
-    # -- helpers ------------------------------------------------------------
-
-    @staticmethod
-    def _device_to_config_entry(
-        hass: HomeAssistant, device_id: str | None
-    ) -> str | None:
-        """Resolve a device_id to its primary config_entry_id."""
-        if not device_id:
-            return None
-        registry = er.async_get(hass)
-        dev = registry.async_get(device_id)
-        config_entries = getattr(dev, "config_entries", None) or getattr(dev, "config_entries_data", [])
-        return config_entries[0] if config_entries else None
-
-    # -- steps ------------------------------------------------------------
-
     async def async_step_options(self, user_input: ConfigType | None = None) -> None:
         """Overview: choose an action or quick-add from an integration."""
         if user_input is not None:
@@ -209,17 +191,9 @@ class HealthMonitorOptionsFlow(OptionsFlow):
         """Edit (or create) a single monitor row."""
         row = dict(self._rows[self._row_idx]) if self._row_idx is not None else {}
         if user_input is not None:
-            entry_val = (row.get("entry") or "").strip()
-            # If device_id was selected, resolve it to config_entry_id
-            new_entry = (user_input.get("entry") or "").strip()
-            device_id = user_input.get("device_id")
-            if device_id and not new_entry:
-                resolved = self._device_to_config_entry(self.hass, device_id)
-                if resolved:
-                    new_entry = resolved
             row = {
                 "name": (user_input.get("name") or "").strip(),
-                "entry": new_entry or entry_val,
+                "entry": (user_input.get("entry") or "").strip(),
                 "rep": user_input.get("rep") or "",
                 "plug": user_input.get("plug") or "",
                 "quiet": bool(user_input.get("quiet")),
@@ -236,35 +210,12 @@ class HealthMonitorOptionsFlow(OptionsFlow):
             self._row_idx = None
             return await self.async_step_options()
 
-        # Build device list: show device names, map to config_entry_id on submit
-        device_options = []
-        registry = er.async_get(self.hass)
-        for dev_id, dev in registry.devices.items():
-            config_entries = getattr(dev, "config_entries", None) or getattr(
-                dev, "config_entries_data", []
-            )
-            if not config_entries:
-                continue
-            name = dev.name_by_user or dev.name or dev_id
-            label = f"{name} ({dev_id})"
-            device_options.append({"value": dev_id, "label": label})
-        device_options.sort(key=lambda o: o["label"])
-
         schema = vol.Schema(
             {
                 vol.Required("name", default=row.get("name", "")): TextSelector({}),
-                # Changed: DeviceSelector instead of text field for entry.
-                # On submit, device_id is resolved to config_entry_id.
-                vol.Optional("device_id", default=None): SelectSelector(
-                    SelectSelectorConfig(
-                        options=device_options, mode="dropdown", custom_value=True
-                    )
-                ) if device_options else vol.Optional(
-                    "entry", default=row.get("entry", "")
-                ): TextSelector({}),
-                # Fixed: use None when rep/plug are empty (prevents validation errors)
-                vol.Optional("rep", default=row.get("rep") or None): EntitySelector({}),
-                vol.Optional("plug", default=row.get("plug") or None): EntitySelector({}),
+                vol.Optional("entry", default=row.get("entry", "")): TextSelector({}),
+                vol.Optional("rep", default=row.get("rep", "")): EntitySelector({}),
+                vol.Optional("plug", default=row.get("plug", "")): EntitySelector({}),
                 vol.Optional("quiet", default=row.get("quiet", False)): BooleanSelector(
                     {}
                 ),
