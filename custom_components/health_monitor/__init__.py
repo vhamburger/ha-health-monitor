@@ -41,10 +41,9 @@ SERVICE_ADD_FROM_DEVICE = "add_from_device"
 SERVICE_SCHEMA = vol.Schema({})
 ADD_FROM_DEVICE_SCHEMA = vol.Schema(
     {
-        vol.Exclusive("device_id", "inputs"): vol.Optional(str),
-        vol.Exclusive("entity_id", "inputs"): vol.Optional(str),
-    },
-    extra=vol.ALLOW_EXTRA,
+        vol.Optional("device_id"): str,
+        vol.Optional("entity_id"): str,
+    }
 )
 
 
