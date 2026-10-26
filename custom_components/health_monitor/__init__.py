@@ -41,9 +41,10 @@ SERVICE_ADD_FROM_DEVICE = "add_from_device"
 SERVICE_SCHEMA = vol.Schema({})
 ADD_FROM_DEVICE_SCHEMA = vol.Schema(
     {
-        vol.Exclusive("device_id", "inputs"): str,
-        vol.Exclusive("entity_id", "inputs"): str,
-    }
+        vol.Exclusive("device_id", "inputs"): vol.Optional(str),
+        vol.Exclusive("entity_id", "inputs"): vol.Optional(str),
+    },
+    extra=vol.ALLOW_EXTRA,
 )
 
 
@@ -171,8 +172,11 @@ async def _handle_add_from_device(call: ServiceCall) -> None:
     entity_id = call.data.get("entity_id")
 
     registry = er.async_get(call.hass)
-
-    new_row: dict | None = None
+    device: object | None = None
+    config_entries: list | None = None
+    config_entry_id = ""
+    device_name = ""
+    primary_entity = ""
 
     if entity_id:
         # Fast path: entity directly — use it as 'rep', resolve entry
@@ -182,31 +186,10 @@ async def _handle_add_from_device(call: ServiceCall) -> None:
                 "Health Monitor: entity '%s' not found in registry", entity_id
             )
             return
-        device = (
-            registry.async_get(ent.device_id) if ent.device_id else None
-        )
-        config_entries = (
-            getattr(device, "config_entries", None)
-            or getattr(device, "config_entries_data", [])
-        ) if device else []
-        config_entry_id = (
-            config_entries[0] if config_entries else ""
-        )
-        device_name = (
-            (device.name_by_user or device.name or ent.device_id)
-            if device
-            else ent.original_name or ent.name or entity_id
-        )
         primary_entity = entity_id
-
-        new_row = {
-            field: (
-                {"name": device_name, "entry": config_entry_id, "rep": primary_entity}.get(field) or ""
-            )
-            for field in ROW_FIELDS
-        }
-        new_row["quiet"] = False
-        new_row["frame"] = False
+        device_name = ent.original_name or ent.name or entity_id
+        if ent.device_id:
+            device = registry.async_get(ent.device_id)
 
     elif device_id:
         # Resolve device → config_entry → primary entity
@@ -216,6 +199,7 @@ async def _handle_add_from_device(call: ServiceCall) -> None:
                 "Health Monitor: device '%s' not found in registry", device_id
             )
             return
+        device_name = device.name_by_user or device.name or device_id
         config_entries = getattr(device, "config_entries", None) or getattr(
             device, "config_entries_data", []
         )
@@ -224,29 +208,30 @@ async def _handle_add_from_device(call: ServiceCall) -> None:
                 "Health Monitor: device '%s' has no config entry", device_id
             )
             return
-        primary_config_entry_id = config_entries[0]
-        device_name = device.name_by_user or device.name or device_id
+        config_entry_id = config_entries[0]
         entities = [
             ent for ent in registry.entities.values()
-            if ent.config_entry_id == primary_config_entry_id
+            if ent.config_entry_id == config_entry_id
         ]
         entities.sort(key=lambda e: e.entity_id)
         primary_entity = entities[0].entity_id if entities else ""
-
-        new_row = {
-            field: (
-                {"name": device_name, "entry": primary_config_entry_id, "rep": primary_entity}.get(field) or ""
-            )
-            for field in ROW_FIELDS
-        }
-        new_row["quiet"] = False
-        new_row["frame"] = False
 
     else:
         _LOGGER.warning(
             "Health Monitor: add_from_device requires device_id or entity_id"
         )
         return
+
+    # Build the row from resolved values
+    new_row = {
+        field: (
+            {"name": device_name, "entry": config_entry_id, "rep": primary_entity}.get(field)
+            or ""
+        )
+        for field in ROW_FIELDS
+    }
+    new_row["quiet"] = False
+    new_row["frame"] = False
 
     # Apply to ALL health_monitor entries
     for entry in call.hass.config_entries.async_entries(DOMAIN):
