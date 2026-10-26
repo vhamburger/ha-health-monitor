@@ -1,7 +1,7 @@
 {
   "domain": "health_monitor",
   "name": "Health Monitor",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "codeowners": ["vhamburger"],
   "config_flow": true,
   "integration_type": "device",

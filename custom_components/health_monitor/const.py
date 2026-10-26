@@ -1,7 +1,7 @@
 """Constants for the Health Monitor integration."""
 
 DOMAIN = "health_monitor"
-VERSION = "1.0.6"
+VERSION = "1.0.7"
 
 CONF_TARGET = "target"
 CONF_ROWS = "rows"
