@@ -172,6 +172,8 @@ async def _handle_add_from_device(call: ServiceCall) -> None:
 
     registry = er.async_get(call.hass)
 
+    new_row: dict | None = None
+
     if entity_id:
         # Fast path: entity directly — use it as 'rep', resolve entry
         ent = registry.async_get(entity_id)
@@ -180,7 +182,9 @@ async def _handle_add_from_device(call: ServiceCall) -> None:
                 "Health Monitor: entity '%s' not found in registry", entity_id
             )
             return
-        device = registry.async_get(ent.device_id) if ent.device_id else None
+        device = (
+            registry.async_get(ent.device_id) if ent.device_id else None
+        )
         config_entries = (
             getattr(device, "config_entries", None)
             or getattr(device, "config_entries_data", [])
@@ -194,6 +198,15 @@ async def _handle_add_from_device(call: ServiceCall) -> None:
             else ent.original_name or ent.name or entity_id
         )
         primary_entity = entity_id
+
+        new_row = {
+            field: (
+                {"name": device_name, "entry": config_entry_id, "rep": primary_entity}.get(field) or ""
+            )
+            for field in ROW_FIELDS
+        }
+        new_row["quiet"] = False
+        new_row["frame"] = False
 
     elif device_id:
         # Resolve device → config_entry → primary entity
@@ -219,21 +232,21 @@ async def _handle_add_from_device(call: ServiceCall) -> None:
         ]
         entities.sort(key=lambda e: e.entity_id)
         primary_entity = entities[0].entity_id if entities else ""
-        config_entry_id = primary_config_entry_id
+
+        new_row = {
+            field: (
+                {"name": device_name, "entry": primary_config_entry_id, "rep": primary_entity}.get(field) or ""
+            )
+            for field in ROW_FIELDS
+        }
+        new_row["quiet"] = False
+        new_row["frame"] = False
 
     else:
         _LOGGER.warning(
             "Health Monitor: add_from_device requires device_id or entity_id"
         )
         return
-
-    # Create a new row with sensible defaults
-    new_row = {
-        field: ({"name": device_name, "entry": config_entry_id, "rep": primary_entity}.get(field) or "")
-        for field in ROW_FIELDS
-    }
-    new_row["quiet"] = False
-    new_row["frame"] = False
 
     # Apply to ALL health_monitor entries
     for entry in call.hass.config_entries.async_entries(DOMAIN):
