@@ -24,10 +24,11 @@ from homeassistant.config_entries import (
     SIGNAL_CONFIG_ENTRY_CHANGED,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from . import apply as apply_mod
-from .const import CONF_ROWS, CONF_TARGET, DOMAIN
+from .const import CONF_ROWS, CONF_TARGET, DOMAIN, ROW_FIELDS
 from . import import_body
 from .watchdog import HealthMonitorStatusSensor
 
@@ -35,8 +36,12 @@ _LOGGER = logging.getLogger(__name__)
 
 SERVICE_REFRESH = "refresh"
 SERVICE_RESYNC = "resync"
+SERVICE_ADD_FROM_DEVICE = "add_from_device"
 
 SERVICE_SCHEMA = vol.Schema({})
+ADD_FROM_DEVICE_SCHEMA = vol.Schema(
+    {vol.Required("device_id"): str}
+)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -123,6 +128,13 @@ async def _register_services(hass: HomeAssistant) -> None:
         hass.services.async_register(
             DOMAIN, SERVICE_RESYNC, _handle_resync, schema=SERVICE_SCHEMA
         )
+    if not hass.services.has_service(DOMAIN, SERVICE_ADD_FROM_DEVICE):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_ADD_FROM_DEVICE,
+            _handle_add_from_device,
+            schema=ADD_FROM_DEVICE_SCHEMA,
+        )
 
 
 async def _handle_refresh(call: ServiceCall) -> None:
@@ -142,3 +154,71 @@ async def _handle_resync(call: ServiceCall) -> None:
         )
         if sensor is not None:
             await sensor.async_recompute()
+
+
+async def _handle_add_from_device(call: ServiceCall) -> None:
+    """Add a new monitor row from a device: find its entities, pick the primary.
+
+    This service lets users add monitors in one click — no manual
+    config-entry-ID copying, no multi-step forms.
+
+    Required parameter: device_id (the HA device identifier).
+    """
+    device_id = call.data["device_id"]
+    registry = er.async_get(call.hass)
+    device = registry.async_get(device_id)
+    if device is None:
+        _LOGGER.warning("Health Monitor: device '%s' not found in registry", device_id)
+        return
+
+    # Resolve to the first config entry
+    config_entries = getattr(device, "config_entries", None) or getattr(
+        device, "config_entries_data", []
+    )
+    if not config_entries:
+        _LOGGER.warning(
+            "Health Monitor: device '%s' has no config entry", device_id
+        )
+        return
+
+    primary_config_entry_id = config_entries[0]
+    device_name = device.name_by_user or device.name or device_id
+
+    # Find the primary entity (first entity for this config entry)
+    entities = [
+        ent for ent in registry.entities.values()
+        if ent.config_entry_id == primary_config_entry_id
+    ]
+    entities.sort(key=lambda e: e.entity_id)
+
+    primary_entity = entities[0].entity_id if entities else ""
+
+    # Create a new row with sensible defaults
+    new_row = {
+        field: ({"name": device_name, "entry": primary_config_entry_id, "rep": primary_entity}.get(field) or "")
+        for field in ROW_FIELDS
+    }
+    new_row["quiet"] = False
+    new_row["frame"] = False
+
+    # Apply to ALL health_monitor entries
+    for entry in call.hass.config_entries.async_entries(DOMAIN):
+        rows = list(entry.options.get(CONF_ROWS) or [])
+        # Avoid duplicates: skip if rep already exists
+        if any(r.get("rep") == primary_entity for r in rows):
+            _LOGGER.info(
+                "Health Monitor: %s already monitored — skipping", primary_entity
+            )
+            continue
+        rows.append(new_row)
+        entry.options = {**entry.options, CONF_ROWS: rows}
+        await apply_mod.apply_config(call.hass, entry)
+        sensor: HealthMonitorStatusSensor | None = call.hass.data.get(DOMAIN, {}).get(
+            entry.entry_id
+        )
+        if sensor is not None:
+            await sensor.async_recompute()
+        _LOGGER.info(
+            "Health Monitor: added '%s' (device: %s, entity: %s, entry: %s)",
+            device_name, device_id, primary_entity, primary_config_entry_id,
+        )
