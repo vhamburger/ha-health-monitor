@@ -40,7 +40,10 @@ SERVICE_ADD_FROM_DEVICE = "add_from_device"
 
 SERVICE_SCHEMA = vol.Schema({})
 ADD_FROM_DEVICE_SCHEMA = vol.Schema(
-    {vol.Required("device_id"): str}
+    {
+        vol.Exclusive("device_id", "inputs"): str,
+        vol.Exclusive("entity_id", "inputs"): str,
+    }
 )
 
 
@@ -157,45 +160,76 @@ async def _handle_resync(call: ServiceCall) -> None:
 
 
 async def _handle_add_from_device(call: ServiceCall) -> None:
-    """Add a new monitor row from a device: find its entities, pick the primary.
+    """Add a new monitor row from a device or entity.
 
     This service lets users add monitors in one click — no manual
     config-entry-ID copying, no multi-step forms.
 
-    Required parameter: device_id (the HA device identifier).
+    Accepts EITHER device_id or entity_id (one is required).
     """
-    device_id = call.data["device_id"]
-    registry = er.async_get(call.hass)
-    device = registry.async_get(device_id)
-    if device is None:
-        _LOGGER.warning("Health Monitor: device '%s' not found in registry", device_id)
-        return
+    device_id = call.data.get("device_id")
+    entity_id = call.data.get("entity_id")
 
-    # Resolve to the first config entry
-    config_entries = getattr(device, "config_entries", None) or getattr(
-        device, "config_entries_data", []
-    )
-    if not config_entries:
+    registry = er.async_get(call.hass)
+
+    if entity_id:
+        # Fast path: entity directly — use it as 'rep', resolve entry
+        ent = registry.async_get(entity_id)
+        if ent is None:
+            _LOGGER.warning(
+                "Health Monitor: entity '%s' not found in registry", entity_id
+            )
+            return
+        device = registry.async_get(ent.device_id) if ent.device_id else None
+        config_entries = (
+            getattr(device, "config_entries", None)
+            or getattr(device, "config_entries_data", [])
+        ) if device else []
+        config_entry_id = (
+            config_entries[0] if config_entries else ""
+        )
+        device_name = (
+            (device.name_by_user or device.name or ent.device_id)
+            if device
+            else ent.original_name or ent.name or entity_id
+        )
+        primary_entity = entity_id
+
+    elif device_id:
+        # Resolve device → config_entry → primary entity
+        device = registry.async_get(device_id)
+        if device is None:
+            _LOGGER.warning(
+                "Health Monitor: device '%s' not found in registry", device_id
+            )
+            return
+        config_entries = getattr(device, "config_entries", None) or getattr(
+            device, "config_entries_data", []
+        )
+        if not config_entries:
+            _LOGGER.warning(
+                "Health Monitor: device '%s' has no config entry", device_id
+            )
+            return
+        primary_config_entry_id = config_entries[0]
+        device_name = device.name_by_user or device.name or device_id
+        entities = [
+            ent for ent in registry.entities.values()
+            if ent.config_entry_id == primary_config_entry_id
+        ]
+        entities.sort(key=lambda e: e.entity_id)
+        primary_entity = entities[0].entity_id if entities else ""
+        config_entry_id = primary_config_entry_id
+
+    else:
         _LOGGER.warning(
-            "Health Monitor: device '%s' has no config entry", device_id
+            "Health Monitor: add_from_device requires device_id or entity_id"
         )
         return
 
-    primary_config_entry_id = config_entries[0]
-    device_name = device.name_by_user or device.name or device_id
-
-    # Find the primary entity (first entity for this config entry)
-    entities = [
-        ent for ent in registry.entities.values()
-        if ent.config_entry_id == primary_config_entry_id
-    ]
-    entities.sort(key=lambda e: e.entity_id)
-
-    primary_entity = entities[0].entity_id if entities else ""
-
     # Create a new row with sensible defaults
     new_row = {
-        field: ({"name": device_name, "entry": primary_config_entry_id, "rep": primary_entity}.get(field) or "")
+        field: ({"name": device_name, "entry": config_entry_id, "rep": primary_entity}.get(field) or "")
         for field in ROW_FIELDS
     }
     new_row["quiet"] = False
@@ -219,6 +253,6 @@ async def _handle_add_from_device(call: ServiceCall) -> None:
         if sensor is not None:
             await sensor.async_recompute()
         _LOGGER.info(
-            "Health Monitor: added '%s' (device: %s, entity: %s, entry: %s)",
-            device_name, device_id, primary_entity, primary_config_entry_id,
+            "Health Monitor: added '%s' (entity: %s, entry: %s)",
+            device_name, primary_entity, config_entry_id,
         )
