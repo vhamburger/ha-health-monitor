@@ -1,4 +1,4 @@
-"""The Health Monitor integration.
+"""Health Monitor integration.
 
 Keeps a template sensor (the health dashboard's source of truth) in sync
 with a structured monitor table:
@@ -36,15 +36,12 @@ _LOGGER = logging.getLogger(__name__)
 
 SERVICE_REFRESH = "refresh"
 SERVICE_RESYNC = "resync"
-SERVICE_ADD_FROM_DEVICE = "add_from_device"
+SERVICE_ADD_FROM_ENTITY = "add_from_entity"
 
 SERVICE_SCHEMA = vol.Schema({})
-ADD_FROM_DEVICE_SCHEMA = vol.Schema(
-    {
-        vol.Optional("device_id"): str,
-        vol.Optional("entity_id"): str,
-    }
-)
+
+# Service: accepts target_entity (avoids collision with HA's built-in entity_id targeting).
+ADD_FROM_ENTITY_SCHEMA = vol.Schema({vol.Optional("target_entity"): str})
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -131,12 +128,12 @@ async def _register_services(hass: HomeAssistant) -> None:
         hass.services.async_register(
             DOMAIN, SERVICE_RESYNC, _handle_resync, schema=SERVICE_SCHEMA
         )
-    if not hass.services.has_service(DOMAIN, SERVICE_ADD_FROM_DEVICE):
+    if not hass.services.has_service(DOMAIN, SERVICE_ADD_FROM_ENTITY):
         hass.services.async_register(
             DOMAIN,
-            SERVICE_ADD_FROM_DEVICE,
-            _handle_add_from_device,
-            schema=ADD_FROM_DEVICE_SCHEMA,
+            SERVICE_ADD_FROM_ENTITY,
+            _handle_add_from_entity,
+            schema=ADD_FROM_ENTITY_SCHEMA,
         )
 
 
@@ -159,69 +156,45 @@ async def _handle_resync(call: ServiceCall) -> None:
             await sensor.async_recompute()
 
 
-async def _handle_add_from_device(call: ServiceCall) -> None:
-    """Add a new monitor row from a device or entity.
+async def _handle_add_from_entity(call: ServiceCall) -> None:
+    """Add a new monitor row from an entity ID.
 
-    This service lets users add monitors in one click — no manual
-    config-entry-ID copying, no multi-step forms.
-
-    Accepts EITHER device_id or entity_id (one is required).
+    This is a simplified service: just pass entity_id and everything else
+    is filled in automatically. No forms, no multi-step processes.
     """
-    device_id = call.data.get("device_id")
-    entity_id = call.data.get("entity_id")
+    entity_id = call.data.get("target_entity")
+    if not entity_id:
+        _LOGGER.warning("Health Monitor: add_from_entity requires target_entity")
+        return
 
     registry = er.async_get(call.hass)
-    device: object | None = None
-    config_entries: list | None = None
-    config_entry_id = ""
-    device_name = ""
-    primary_entity = ""
-
-    if entity_id:
-        # Fast path: entity directly — use it as 'rep', resolve entry
-        ent = registry.async_get(entity_id)
-        if ent is None:
-            _LOGGER.warning(
-                "Health Monitor: entity '%s' not found in registry", entity_id
-            )
-            return
-        primary_entity = entity_id
-        device_name = ent.original_name or ent.name or entity_id
-        if ent.device_id:
-            device = registry.async_get(ent.device_id)
-
-    elif device_id:
-        # Resolve device → config_entry → primary entity
-        device = registry.async_get(device_id)
-        if device is None:
-            _LOGGER.warning(
-                "Health Monitor: device '%s' not found in registry", device_id
-            )
-            return
-        device_name = device.name_by_user or device.name or device_id
-        config_entries = getattr(device, "config_entries", None) or getattr(
-            device, "config_entries_data", []
-        )
-        if not config_entries:
-            _LOGGER.warning(
-                "Health Monitor: device '%s' has no config entry", device_id
-            )
-            return
-        config_entry_id = config_entries[0]
-        entities = [
-            ent for ent in registry.entities.values()
-            if ent.config_entry_id == config_entry_id
-        ]
-        entities.sort(key=lambda e: e.entity_id)
-        primary_entity = entities[0].entity_id if entities else ""
-
-    else:
+    ent = registry.async_get(entity_id)
+    if ent is None:
         _LOGGER.warning(
-            "Health Monitor: add_from_device requires device_id or entity_id"
+            "Health Monitor: entity '%s' not found in registry", entity_id
         )
         return
 
-    # Build the row from resolved values
+    # Resolve device → config_entry if possible
+    device: object | None = None
+    device_name = ent.original_name or ent.name or entity_id
+    config_entry_id = ""
+
+    if ent.device_id:
+        device = registry.async_get(ent.device_id)
+        if device is not None:
+            device_name = device.name_by_user or device.name or entity_id
+            config_entries = (
+                getattr(device, "config_entries", None)
+                or getattr(device, "config_entries_data", [])
+            )
+            config_entry_id = (
+                config_entries[0] if config_entries else ""
+            )
+
+    primary_entity = entity_id
+
+    # Build the row
     new_row = {
         field: (
             {"name": device_name, "entry": config_entry_id, "rep": primary_entity}.get(field)

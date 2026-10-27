@@ -4,3 +4,13 @@ refresh:
 resync:
   name: "Resync template"
   description: "Regenerate the template from the table and write it to the target helper."
+add_from_entity:
+  name: "Add monitor from entity"
+  description: "Add a new monitor row for the given entity (name and entry auto-resolved)."
+  fields:
+    target_entity:
+      name: "Entity"
+      description: "Entity ID to add as a monitor row."
+      required: true
+      selector:
+        entity: {}

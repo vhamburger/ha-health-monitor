@@ -15,40 +15,46 @@
     "step": {
       "options": {
         "title": "Health Monitor – Monitore",
-        "description": "{rows} Monitore konfiguriert. Aktion wählen: Template generieren, Monitore hinzufügen, bearbeiten oder löschen – oder per Quick-Add aus einer Integration. Zeilen mit gleichem Namen werden zu einem Monitor zusammengeführt.",
+        "description": "{rows} Monitore konfiguriert. Aktion wählen: Template generieren, per Entity oder Integration hinzufügen, löschen – oder einen einzelnen Monitor bearbeiten.",
         "data": {
-          "action": "Aktion",
-          "quick_add_domain": "Quick-Add (Integration)"
+          "action": "Aktion"
         }
       },
-      "row": {
-        "title": "Monitor: {name}",
-        "description": "Feld-Hilfe: entry = Config-Entry-UUIDs (kommagetrennt); rep = Repräsentativ-Entität (Verfügbarkeits-Check); plug = Strom-Schalter (aus = nie gemeldet); check = entity, entity|bad1,bad2 oder entity|bad|text; fresh = entity oder entity|Stunden.",
+      "add_entity": {
+        "title": "Per Entity hinzufügen",
+        "description": "Entity suchen und auswählen. Name und Config-Entry werden automatisch übernommen.",
         "data": {
-          "name": "Name",
-          "entry": "Config-Entries (UUIDs, kommagetrennt)",
-          "rep": "Repräsentativ-Entität",
-          "plug": "Strom-Schalter",
-          "quiet": "Ruhezeiten (22–08)",
-          "frame": "TheFrame-Gruppe",
-          "mass": "Mass-Domain",
-          "mass_ext": "Mass-Optionen (thr=3, match=status)",
-          "check": "Check (entity | entity|bad | entity|bad|text)",
-          "fresh": "Fresh (entity | entity|Stunden)"
+          "entity": "Entity"
         }
       },
-      "delete": {
-        "title": "Monitore löschen",
-        "description": "Wähle die Monitore, die aus der Tabelle entfernt werden sollen.",
+      "pick_domain": {
+        "title": "Per Integration hinzufügen",
+        "description": "Integration wählen, deren Entitäten hinzugefügt werden sollen.",
         "data": {
-          "rows": "Monitore"
+          "domain": "Integration"
         }
       },
       "quick_add": {
         "title": "Quick-Add: {domain}",
-        "description": "Entitäten auswählen, die als Monitore hinzugefügt werden sollen (eine Zeile pro Entität).",
+        "description": "Alle noch nicht überwachten Entitäten sind vorausgewählt. Einfach abschicken oder anpassen.",
         "data": {
           "entities": "Entitäten"
+        }
+      },
+      "edit_row": {
+        "title": "Bearbeiten: {name}",
+        "description": "Name oder Flags anpassen. Alle anderen Felder bleiben erhalten.",
+        "data": {
+          "name": "Name",
+          "quiet": "Ruhezeiten (22–08)",
+          "frame": "TheFrame-Gruppe"
+        }
+      },
+      "delete": {
+        "title": "Monitore löschen",
+        "description": "Monitore auswählen, die aus der Tabelle entfernt werden sollen.",
+        "data": {
+          "rows": "Monitore"
         }
       }
     }
@@ -61,6 +67,10 @@
     "resync": {
       "name": "Template neu synchronisieren",
       "description": "Generiert das Template aus der Tabelle neu und schreibt es in den Ziel-Helper."
+    },
+    "add_from_entity": {
+      "name": "Monitor aus Entity hinzufügen",
+      "description": "Fügt einen neuen Monitor hinzu. Parameter: target_entity (Entity-ID). Name und Config-Entry werden automatisch aufgelöst."
     }
   }
 }
